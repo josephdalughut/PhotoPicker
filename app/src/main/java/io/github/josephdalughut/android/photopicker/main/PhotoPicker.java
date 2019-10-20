@@ -20,10 +20,8 @@ import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import java.util.Locale;
-import java.util.UUID;
 
 import io.github.josephdalughut.android.photopicker.R;
-import io.github.josephdalughut.android.photopicker.util.FileUtils;
 
 import static com.yalantis.ucrop.UCrop.REQUEST_CROP;
 
@@ -46,9 +44,10 @@ public abstract class PhotoPicker {
     private String folderName;
     String authority;
     private boolean cached;
+    private boolean timestamped = false;
 
     @ColorRes
-    private Integer color = R.color.colorPrimary;
+    private Integer colorRes = R.color.colorPrimary;
 
     // Uri we'll be cropping from.
     Uri cropUri;
@@ -67,6 +66,7 @@ public abstract class PhotoPicker {
      * Starts the photo-picking process.
      */
     void start() {
+        Log.d(LOG_TAG, "Starting photo picker");
         if (hasPermissions()) {
             tryLoadPhoto();
         }
@@ -124,7 +124,7 @@ public abstract class PhotoPicker {
      * @return <code>true</code> if the picker handled this request.
      */
     public boolean handleActivityResult(int requestCode, int resultCode, Intent data) {
-        Log.d(LOG_TAG, "Handling activity result");
+        Log.d(LOG_TAG, "Handling activity result, code: " + resultCode);
         if (requestCode != REQUEST_CODE_PICK_IMAGE && requestCode != REQUEST_CROP) return false;
         if (resultCode != Activity.RESULT_OK) {
             Log.d(LOG_TAG, "Error from activity");
@@ -136,8 +136,12 @@ public abstract class PhotoPicker {
 
         switch (requestCode) {
             case REQUEST_CODE_PICK_IMAGE:
-                if (data != null) {
+                if (data != null && data.getData() != null) {
+                    Log.d(LOG_TAG, "Uri: " + data.getData());
+                    Log.d(LOG_TAG, "Crop uri: " + cropUri);
                     cropUri = data.getData();
+                } else {
+                    Log.d(LOG_TAG, "No uri");
                 }
                 try {
                     startCrop();
@@ -160,16 +164,19 @@ public abstract class PhotoPicker {
 
     private Uri createImageFile() {
         File fileDir = cached ? fragment.getContext().getExternalCacheDir() : fragment.getContext().getExternalFilesDir(Environment.DIRECTORY_PICTURES);
-        String finalFolderName = fileName != null ? fileName : fragment.getString(R.string.app_name);
+        String finalFolderName = folderName == null || folderName.trim().isEmpty() ? "" : folderName;
         String imagePath = fileDir + File.separator + finalFolderName;
         File path = new File(imagePath);
-        if (!path.exists()) {
-            path.mkdir();
-        }
+        if (!path.exists()) path.mkdir();
 
-        String name = (fileName != null && !fileName.trim().isEmpty() ? fileName :
-                "JPEG_" + new SimpleDateFormat("yyyyMMdd-HHmmss", Locale.US).format(new Date(System.currentTimeMillis())));
-        name = name + ".jpg";
+        String name = fileName == null || fileName.trim().isEmpty() ? "" : fileName;
+        if (this.timestamped || name.isEmpty()) {
+            if (!name.isEmpty()) name += "_";
+            String timeStamp = new SimpleDateFormat("yyyyMMdd_HHmmss").format(new Date());
+            name += timeStamp;
+        }
+        name += ".jpg";
+
         File photo = new File(path, name);
         return Uri.fromFile(photo);
     }
@@ -178,6 +185,10 @@ public abstract class PhotoPicker {
         Uri outputUri = createImageFile();
 
         UCrop.Options options = new UCrop.Options();
+        int color = fragment.getResources().getColor(this.colorRes);
+        options.setToolbarColor(color);
+        options.setStatusBarColor(color);
+        options.setActiveWidgetColor(color);
         options.setFreeStyleCropEnabled(true);
 
         UCrop uCrop = UCrop.of(cropUri, outputUri)
@@ -207,6 +218,7 @@ public abstract class PhotoPicker {
         private String folderName;
         private String authority;
         private boolean cached = false;
+        private boolean timestamped = false;
         private Source source = Source.GALLERY;
         private OnResultListener onResultListener;
         private Integer colorRes;
@@ -255,7 +267,15 @@ public abstract class PhotoPicker {
         }
 
         /**
-         * Sets the color used to theme the cropping tool.
+         * Adds a timestamp to the name of the photo.
+         */
+        public Builder timestamped() {
+            this.timestamped = true;
+            return this;
+        }
+
+        /**
+         * Sets the colorRes used to theme the cropping tool.
          */
         public Builder color(@ColorRes Integer colorRes) {
             this.colorRes = colorRes;
@@ -286,7 +306,8 @@ public abstract class PhotoPicker {
             picker.fileName = fileName;
             picker.folderName = folderName;
             picker.mOnResultListener = onResultListener;
-            picker.color = colorRes;
+            picker.colorRes = colorRes;
+            picker.timestamped = timestamped;
 
             picker.start();
             return picker;
