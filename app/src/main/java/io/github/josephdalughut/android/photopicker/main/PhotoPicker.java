@@ -43,11 +43,13 @@ public abstract class PhotoPicker {
     private String fileName;
     private String folderName;
     String authority;
-    private boolean cached;
+    private boolean cached = false;
+    private boolean cropped = true;
     private boolean timestamped = false;
 
     @ColorRes
     private Integer colorRes = R.color.colorPrimary;
+    private UCrop.Options options;
 
     // Uri we'll be cropping from.
     Uri cropUri;
@@ -143,11 +145,16 @@ public abstract class PhotoPicker {
                 } else {
                     Log.d(LOG_TAG, "No uri");
                 }
-                try {
-                    startCrop();
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    mOnResultListener.onImageError(new Exception("An error occurred while cropping your image."));
+
+                if (cropped) {
+                    try {
+                        startCrop();
+                    } catch (Exception e) {
+                        e.printStackTrace();
+                        mOnResultListener.onImageError(new Exception("An error occurred while cropping your image."));
+                    }
+                } else {
+                    mOnResultListener.onImagePicked(cropUri);
                 }
                 break;
             case REQUEST_CROP:
@@ -184,12 +191,16 @@ public abstract class PhotoPicker {
     private void startCrop() throws Exception {
         Uri outputUri = createImageFile();
 
-        UCrop.Options options = new UCrop.Options();
-        int color = fragment.getResources().getColor(this.colorRes);
-        options.setToolbarColor(color);
-        options.setStatusBarColor(color);
-        options.setActiveWidgetColor(color);
-        options.setFreeStyleCropEnabled(true);
+        UCrop.Options options = this.options;
+
+        if (options == null) {
+            options = new UCrop.Options();
+            int color = fragment.getResources().getColor(this.colorRes);
+            options.setToolbarColor(color);
+            options.setStatusBarColor(color);
+            options.setActiveControlsWidgetColor(color);
+            options.setFreeStyleCropEnabled(true);
+        }
 
         UCrop uCrop = UCrop.of(cropUri, outputUri)
                 .useSourceImageAspectRatio()
@@ -219,9 +230,11 @@ public abstract class PhotoPicker {
         private String authority;
         private boolean cached = false;
         private boolean timestamped = false;
+        private boolean cropped = true;
         private Source source = Source.GALLERY;
         private OnResultListener onResultListener;
         private Integer colorRes;
+        private UCrop.Options uCropOptions;
 
         /**
          * Sets the name of the photo file
@@ -259,18 +272,26 @@ public abstract class PhotoPicker {
         }
 
         /**
-         * Saves the photo in a cached location in internal storage.
+         * Enables/disables making use of the apps cache folder for saving output images.
          */
-        public Builder cached() {
-            this.cached = true;
+        public Builder cached(boolean cached) {
+            this.cached = cached;
             return this;
         }
 
         /**
-         * Adds a timestamp to the name of the photo.
+         * Enables/disable cropping of the selected image.
          */
-        public Builder timestamped() {
-            this.timestamped = true;
+        public Builder cropped(boolean cropped) {
+            this.cropped = cropped;
+            return this;
+        }
+
+        /**
+         * Enables/disables adding a timestamp to the name of the photo.
+         */
+        public Builder timestamped(boolean timestamped) {
+            this.timestamped = timestamped;
             return this;
         }
 
@@ -279,6 +300,14 @@ public abstract class PhotoPicker {
          */
         public Builder color(@ColorRes Integer colorRes) {
             this.colorRes = colorRes;
+            return this;
+        }
+
+        /**
+         * Sets a custom set of {@link UCrop.Options} for the cropping tool.
+         */
+        public Builder uCropOptions(UCrop.Options options) {
+            this.uCropOptions = options;
             return this;
         }
 
@@ -303,11 +332,13 @@ public abstract class PhotoPicker {
                     new CameraPhotoPicker(fragment);
             picker.authority = authority;
             picker.cached = cached;
+            picker.cropped = cropped;
             picker.fileName = fileName;
             picker.folderName = folderName;
             picker.mOnResultListener = onResultListener;
             picker.colorRes = colorRes;
             picker.timestamped = timestamped;
+            picker.options = uCropOptions;
 
             picker.start();
             return picker;
