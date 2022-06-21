@@ -87,10 +87,14 @@ public abstract class PhotoPicker {
 
     private boolean hasPermissions() {
         Context context = fragment.getContext();
-        boolean hasPermissions = ContextCompat.checkSelfPermission(context,
+        boolean hasCameraPermissions = ContextCompat.checkSelfPermission(context,
+                Manifest.permission.CAMERA) == PackageManager.PERMISSION_GRANTED;
+        boolean hasStoragePermissions = ContextCompat.checkSelfPermission(context,
                 Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED;
+        boolean hasPermissions = hasCameraPermissions && hasStoragePermissions;
         if (!hasPermissions) {
-            fragment.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
+            fragment.requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE,
+                            Manifest.permission.CAMERA},
                     REQUEST_CODE_PERMISSIONS);
         }
         return hasPermissions;
