@@ -2,5 +2,18 @@
         package="io.github.josephdalughut.android.photopicker">
 
     <application android:allowBackup="true"
-        android:label="@string/app_name"/>
+        android:label="@string/app_name">
+    </application>
+
+    <queries>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="image/png"/>
+        </intent>
+        <intent>
+            <action android:name="android.media.action.IMAGE_CAPTURE" />
+            <data android:mimeType="image/png"/>
+        </intent>
+    </queries>
+
 </manifest>

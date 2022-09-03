@@ -1,5 +1,6 @@
 package io.github.josephdalughut.android.photopicker.main;
 
+import android.annotation.SuppressLint;
 import android.content.Intent;
 import android.net.Uri;
 import android.provider.MediaStore;
@@ -22,6 +23,7 @@ public class CameraPhotoPicker extends PhotoPicker {
         super(fragment);
     }
 
+    @SuppressLint("QueryPermissionsNeeded")
     @Override
     void loadPhoto() throws IOException {
         if (authority == null || authority.isEmpty())
